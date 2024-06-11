@@ -68,7 +68,7 @@ param_grid = {
     'max_features': [None, 'sqrt', 'log2', 4]
 }
 
-# Configurar a busca em grade
+# Configurando a busca em grade
 grid_search = GridSearchCV(DecisionTreeClassifier(random_state=0), param_grid, cv=5, scoring='accuracy', n_jobs=-1)
 
 # Treinar o modelo usando a busca em grade
