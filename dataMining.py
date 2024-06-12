@@ -17,10 +17,15 @@ def remover_coluna_sem_relacao(df):
     return df
 
 
-def remover_outliers(df): #remocao de outliers das 3 primeiras colunas atraves de z-score
+def remover_outliers(df):
+    # Remoção de outliers das 3 primeiras colunas através do IQR
     for column in df.columns[:3]:
-        z_scores = (df[column] - df[column].mean()) / df[column].std()
-        df[column] = np.where(np.abs(z_scores) > 3, np.nan, df[column])
+        Q1 = df[column].quantile(0.25)
+        Q3 = df[column].quantile(0.75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - 1.5 * IQR
+        upper_bound = Q3 + 1.5 * IQR
+        df[column] = np.where((df[column] < lower_bound) | (df[column] > upper_bound), np.nan, df[column])
     return df
 
 def preenche_missing_value(df): #preenchimento de missing
