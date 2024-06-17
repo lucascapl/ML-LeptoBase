@@ -4,6 +4,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from imblearn.over_sampling import SMOTE
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler
 import numpy as np
 
 def tratar_planilha(df):
@@ -13,9 +14,8 @@ def tratar_planilha(df):
     return df
 
 def remover_coluna_sem_relacao(df):
-    df.drop(df.columns[[3, 4, 5]], axis=1, inplace=True) #remocao das colunas de lixo entulho, sinais roedores, contato agua/lama
+    df.drop(df.columns[[2, 3, 4, 5]], axis=1, inplace=True) # remoção das colunas de lixo entulho, sinais roedores, contato água/lama
     return df
-
 
 def remover_outliers(df):
     # Remoção de outliers das 3 primeiras colunas através do IQR
@@ -37,19 +37,23 @@ def preenche_missing_value(df): #preenchimento de missing
             df[column] = df[column].fillna(0)
     return df
 
-def gera_nova_planilha(df): #gera nova planilha pra ver o resultado da base que sera processada
+def normalizar_dados(df):
+    scaler = MaxAbsScaler()  # ou MinMaxScaler()
+    df[df.columns[:3]] = scaler.fit_transform(df[df.columns[:3]])  # Normalizando apenas as 3 primeiras colunas contínuas
+    return df
+
+def gera_nova_planilha(df): #gera nova planilha pra ver o resultado da base que será processada
     new_file_path = 'lepto_base_limpa.xlsx'
     df.to_excel(new_file_path, index=False)
 
-
-
-file_path = 'lepto_base.xlsx' #carrega a base original
-df = pd.read_excel(file_path, sheet_name='base2') #folha contendo os dados
+file_path = 'lepto_base.xlsx' # carrega a base original
+df = pd.read_excel(file_path, sheet_name='base2') # folha contendo os dados
 
 df = tratar_planilha(df) #funcao para tratar a planilha inicialmente
 df = remover_coluna_sem_relacao(df) #funcao para remover as colunas que nao possuem relacao de causa e efeito com o que queremos prever
 df = remover_outliers(df) #funcao para remover outliers
 df = preenche_missing_value(df) #funcao para preencher missing
+df = normalizar_dados(df) # Função para normalizar os dados contínuos
 
 gera_nova_planilha(df) #funcao para gerar nova planilha
 
@@ -59,11 +63,12 @@ target_name = df.columns[-1] #coluna de target (quem queremos prever)
 X = df[feature_names]
 Y = df[target_name]
 
-# Aplicação do SMOTE para rebalancear as classes de target
-smote = SMOTE(random_state=0)
-X_resampled, Y_resampled = smote.fit_resample(X, Y)
+# Dividir os dados em conjuntos de treino e teste
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, random_state=0, test_size=0.4)
 
-X_train, X_test, Y_train, Y_test = train_test_split(X_resampled, Y_resampled, random_state=0, test_size=0.4)
+# Aplicação do SMOTE apenas no conjunto de treino
+smote = SMOTE(random_state=0)
+X_train_resampled, Y_train_resampled = smote.fit_resample(X_train, Y_train)
 
 # Definir os parâmetros para a busca em grade
 param_grid = {
@@ -77,7 +82,7 @@ param_grid = {
 grid_search = GridSearchCV(DecisionTreeClassifier(random_state=0), param_grid, cv=5, scoring='accuracy', n_jobs=-1)
 
 # Treinar o modelo usando a busca em grade
-grid_search.fit(X_train, Y_train)
+grid_search.fit(X_train_resampled, Y_train_resampled)
 
 # Obter o melhor modelo
 best_clf = grid_search.best_estimator_
@@ -96,10 +101,6 @@ print('Relatório de Classificação:\n', report)
 # Imprimir os melhores hiperparâmetros
 print('Melhores hiperparâmetros:', grid_search.best_params_)
 
-#matriz de confusao gerada pelo chat gpt
-
-# Prever nos dados de teste
-Y_pred = best_clf.predict(X_test)
 
 # Calcular a matriz de confusão
 conf_matrix = confusion_matrix(Y_test, Y_pred)
