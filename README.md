@@ -20,7 +20,7 @@ Trabalho de avaliação da disciplina de data mining do curso de Ciência da Com
   - Mediana
   - Proporção de positivos e negativos (para dados binários)
 - **Limpeza de dados (outliers e missing):**
-  - Z-Score para remoção de outliers de dados contínuos
+  -  Inter Quartile Range para remoção de outliers de dados contínuos
   - Preenchimento de dados faltantes (mediana para dados contínuos e moda para dados binários)
   - Redução de atributos sem relação de causa e efeito com a classificação do paciente
 - **SMOTE para balanceamento da saída**
