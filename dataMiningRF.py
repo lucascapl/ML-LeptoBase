@@ -4,7 +4,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from imblearn.over_sampling import SMOTE
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, KBinsDiscretizer, MinMaxScaler
 import numpy as np
 
 def tratar_planilha(df):
@@ -13,7 +13,7 @@ def tratar_planilha(df):
     return df
 
 def remover_coluna_sem_relacao(df):
-    df.drop(df.columns[[2, 3, 4, 5]], axis=1, inplace=True) # Remoção das colunas de lixo entulho, sinais roedores, contato água/lama
+    df.drop(df.columns[[3, 4, 5]], axis=1, inplace=True) # Remoção das colunas de lixo entulho, sinais roedores, contato água/lama
     return df
 
 def remover_outliers(df):
@@ -22,24 +22,29 @@ def remover_outliers(df):
         Q1 = df[column].quantile(0.25)
         Q3 = df[column].quantile(0.75)
         IQR = Q3 - Q1
-        lower_bound = Q1 - 1.5 * IQR
-        upper_bound = Q3 + 1.5 * IQR
+        lower_bound = Q1 - 2.5 * IQR
+        upper_bound = Q3 + 2.5 * IQR
         df[column] = np.where((df[column] < lower_bound) | (df[column] > upper_bound), np.nan, df[column])
     return df
 
 def preenche_missing_value(df):
     # Preenchimento de missing values
     for column in df.columns[:3]: # Apenas as 3 primeiras colunas
-        median = df[column].median()
-        df[column] = df[column].fillna(median) # Preencher os missing values com a mediana de cada coluna
+        media = df[column].median()
+        df[column] = df[column].fillna(media) # Preencher os missing values com a mediana de cada coluna
     for column in df.columns[:-1]:
         if column not in df.columns[:3]: # Preenchendo com zero a coluna dos sintomas onde estiver com missing value
             df[column] = df[column].fillna(0)
     return df
 
 def normalizar_dados(df):
-    scaler = StandardScaler()  # ou MinMaxScaler()
+    scaler = MinMaxScaler()
     df[df.columns[:3]] = scaler.fit_transform(df[df.columns[:3]])  # Normalizando apenas as 3 primeiras colunas contínuas
+    return df
+
+def discretizar_colunas(df):
+    est = KBinsDiscretizer(n_bins=6, encode='ordinal', strategy='quantile')
+    df[df.columns[:3]] = est.fit_transform(df[df.columns[:3]])
     return df
 
 def gera_nova_planilha(df):
@@ -55,6 +60,7 @@ df = remover_coluna_sem_relacao(df) # Função para remover as colunas que não 
 df = remover_outliers(df) # Função para remover outliers
 df = preenche_missing_value(df) # Função para preencher missing values
 df = normalizar_dados(df) # Função para normalizar os dados contínuos
+df = discretizar_colunas(df) # Função para discretizar colunas
 
 gera_nova_planilha(df) # Função para gerar nova planilha
 
@@ -68,7 +74,7 @@ Y = df[target_name]
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, random_state=0, test_size=0.3)
 
 # Aplicação do SMOTE apenas no conjunto de treino
-smote = SMOTE(random_state=0)
+smote = SMOTE(random_state=0, sampling_strategy="not majority")
 X_train_resampled, Y_train_resampled = smote.fit_resample(X_train, Y_train)
 
 # Definir os parâmetros para a busca em grade para RandomForest
